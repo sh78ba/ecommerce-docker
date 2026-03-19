@@ -1,14 +1,13 @@
 const express = require("express");
-const { POOL } = require("pg");
+const { Pool } = require("pg");
 const reddis = require("redis");
-const amqp = require("amqp");
-const { use } = require("react");
+const amqp = require("amqplib");
 
 const app = express();
 
 app.use(express.json());
 
-const pool = new POOL({
+const pool = new Pool({
   host: "postgres",
   user: "admin",
   password: "admin",
@@ -17,7 +16,7 @@ const pool = new POOL({
 });
 
 //Reddis
-const reddisClient = reddis.createClient({ url: "redis//reddis:6379" });
+const reddisClient = reddis.createClient({ url: "redis://reddis:6379" });
 reddisClient.connect();
 
 //RabbitMQ
@@ -57,6 +56,6 @@ app.post("/order", async (req, res) => {
   res.json({ message: "Order Placed Successfully", order: result.row[0] });
 });
 
-app.listen(5000, () => {
-  console.log("Backend Running on 5000");
+app.listen(5001, () => {
+  console.log("Backend Running on 5001");
 });
