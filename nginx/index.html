@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+  <body>
+    <h1>Products</h1>
+    <button onclick="load()">Load Products</button>
+    <ul id="list"></ul>
+    <script>
+      async function buy(id) {
+        await fetch("/api/order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ product_id: id }),
+        });
+
+        alert("Order Placed");
+      }
+
+      async function load() {
+        const res = await fetch("/api/products");
+        const data = await res.json();
+
+        const list = document.getElementById("list");
+        list.innerHTML = "";
+
+        data.forEach((e) => {
+          const li = document.createElement("li");
+          li.innerHTML = `${e.name} - Rs. ${e.price};
+          <button onclick="buy(${e.id})"> Buy </button>`;
+          list.appendChild(li);
+        });
+      }
+    </script>
+  </body>
+</html>
