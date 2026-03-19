@@ -1,6 +1,6 @@
 const express = require("express");
 const { Pool } = require("pg");
-const reddis = require("redis");
+const redis = require("redis");
 const amqp = require("amqplib");
 
 const app = express();
@@ -16,28 +16,36 @@ const pool = new Pool({
 });
 
 //Reddis
-const reddisClient = reddis.createClient({ url: "redis://reddis:6379" });
-reddisClient.connect();
+const redisClient = redis.createClient({ url: "redis://redis:6379" });
+redisClient.connect();
 
 //RabbitMQ
 let channel;
 async function connectRabbitMQ() {
-  const conn = await amqp.connect("amqp://rabbitmq");
-  channel = await conn.createChannel();
-  await channel.assertQueue("orders");
+  while (true) {
+    try {
+      const conn = await amqp.connect("amqp://rabbitmq");
+      channel = await conn.createChannel();
+      await channel.assertQueue("orders");
+      console.log("Connected to RabbitMQ");
+    } catch (err) {
+      console.log("Waiting for RabbitMQ...");
+      await new Promise((res) => setTimeout(res, 3000));
+    }
+  }
 }
 connectRabbitMQ();
 
 //Get Products
 app.get("/products", async (req, res) => {
-  const cached = await reddisClient.get("products");
+  const cached = await redisClient.get("products");
 
   if (cached) {
     return res.json(JSON.parse(cached));
   }
 
   const result = await pool.query("SELECT * from products");
-  await reddisClient.set("products", JSON.stringify(result.rows));
+  await redisClient.set("products", JSON.stringify(result.rows));
   res.json(JSON.parse(result.rows));
 });
 

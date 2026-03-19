@@ -1,4 +1,4 @@
-const amqp = require(amqplib);
+const amqp = require("amqplib");
 const { Pool } = require("pg");
 
 const pool = new Pool({
@@ -10,21 +10,35 @@ const pool = new Pool({
 });
 
 async function startWorker() {
-  const conn = await amqp.connect("amqp://rabbitmq");
-  const channel = await conn.createChannel();
+  let channel;
 
-  await channel.assertQueue("orders");
-  console.log("Worker started");
+  // 🔁 Retry connection until RabbitMQ is ready
+  while (true) {
+    try {
+      const conn = await amqp.connect("amqp://rabbitmq");
+      channel = await conn.createChannel();
+      await channel.assertQueue("orders");
+      console.log("✅ Worker connected to RabbitMQ");
+      break;
+    } catch (err) {
+      console.log("⏳ Waiting for RabbitMQ...");
+      await new Promise((res) => setTimeout(res, 3000));
+    }
+  }
+
+  console.log("🚀 Worker started...");
 
   channel.consume("orders", async (msg) => {
     const order = JSON.parse(msg.content.toString());
-    console.log("Processing order", order.id);
+
+    console.log("📦 Processing order:", order.id);
 
     setTimeout(async () => {
-      await pool.query("UPDATE orders SET status='completed' WHERE id = $1", [
+      await pool.query("UPDATE orders SET status='completed' WHERE id=$1", [
         order.id,
       ]);
-      console.log("Order completed", order.id);
+
+      console.log("✅ Order completed:", order.id);
       channel.ack(msg);
     }, 5000);
   });
